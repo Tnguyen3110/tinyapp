@@ -73,6 +73,18 @@ app.post('/urls/:id/delete', (req, res) => {
   res.redirect('/urls');
 });
 
+// POST route to update a URL resource
+app.post("/urls/:id/update", (req, res) => {
+  const id = req.params.id; // Get the value of :id from the request URL
+  const newURL = req.body.longURL; // Get the new URL from the request body
+
+  // Update the value of the stored long URL based on the new value
+  urlDatabase[id] = newURL;
+
+  // Redirect the client back to /urls
+  res.redirect("/urls");
+});
+
 app.post("/urls", (req, res) => {
   console.log(req.body); // Log the POST request body to the console
   res.send("Ok"); // Respond with 'Ok' (we will replace this)
