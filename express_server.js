@@ -63,6 +63,16 @@ app.get("/u/:id", (req, res) => {
   }
 });
 
+app.post('/urls/:id/delete', (req, res) => {
+  const id = req.params.id; // Get the value of :id from the request URL
+
+  // Remove the URL resource using the delete operator
+  delete urlDatabase[id];
+
+  // Redirect the client back to the urls_index page ("/urls")
+  res.redirect('/urls');
+});
+
 app.post("/urls", (req, res) => {
   console.log(req.body); // Log the POST request body to the console
   res.send("Ok"); // Respond with 'Ok' (we will replace this)
