@@ -17,6 +17,9 @@
         <!-- Submit button -->
         <button type="submit">Login</button>
       </form>
+      <% if (username) { %>
+        <p class="nav-item nav-link">Welcome, <%= username %>!</p>
+      <% } %>
     </div>
   </nav>
 </header>
