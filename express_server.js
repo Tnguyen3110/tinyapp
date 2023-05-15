@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
+const cookieParser = require('cookie-parser');
 
 
 app.set("view engine", "ejs")
@@ -8,6 +9,9 @@ app.set("view engine", "ejs")
 app.use(express.urlencoded({ extended: true }));
 //shortId: longURL
 // urlDatabase[shortId] = longURL;
+// Additional middleware setup
+app.use(cookieParser());
+
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com"
@@ -26,6 +30,18 @@ function generateRandomString(string_length) {
   console.log(random_string);
 }
 
+// POST /login endpoint
+app.post('/login', (req, res) => {
+  const { username } = req.body;
+
+  // Set the 'username' cookie with the submitted value
+  res.cookie('username', username);
+
+  // Redirect the browser back to the /urls page
+  res.redirect('/urls');
+});
+
+
 // user submits a form, this function handles the user submission and insert into the urlDatabase and redirect to /urls/shortId function
 app.post('/urls', (req, res) => {
   // user post req.body which contains longURL
@@ -35,20 +51,20 @@ app.post('/urls', (req, res) => {
   urlDatabase[shortId] = longURL;
   console.log("urlDatabase", urlDatabase);
   // placing /urls/shortId in the browser
-  res.redirect("/urls/"+shortId)
+  res.redirect("/urls/" + shortId)
 });
 
 
 // Browser receives above and calls this function that handles the redirect of /urls/:id route and display the page
 app.get('/urls/:id', (req, res) => {
- 
-    const templateVars = {
+
+  const templateVars = {
     id: req.params.id,
     longURL: urlDatabase[req.params.id]
   };
-  
+
   return res.render('urls_show', templateVars);
-  
+
 
 });
 
