@@ -116,6 +116,10 @@ app.post('/logout', (req, res) => {
   res.redirect('/urls'); // Redirect the user back to the /urls page
 });
 
+app.get('/register', (req, res) => {
+  res.render('registration');
+});
+
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}!`);
 });
