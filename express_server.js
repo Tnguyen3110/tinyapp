@@ -10,7 +10,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Middleware function
 app.use((req, res, next) => {
-  res.locals.username = req.cookies["username"];
+  res.locals.user_id = req.cookies["user_id"];
   next();
 });
 
