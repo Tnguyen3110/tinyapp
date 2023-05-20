@@ -127,6 +127,11 @@ app.post('/login', (req, res) => {
 });
 
 app.post('/urls', (req, res) => {
+  const userId = req.cookies.user_id;
+
+  // Check if the user is logged in
+  if (userId && users[userId]) {
+  // User is logged in, proceed with URL shortening logic
   // user post req.body which contains longURL
   const { longURL } = req.body;
   // shortId
@@ -135,6 +140,10 @@ app.post('/urls', (req, res) => {
   console.log("urlDatabase", urlDatabase);
   // placing /urls/shortId in the browser
   res.redirect("/urls/" + shortId);
+} else {
+  // User is not logged in, respond with an HTML message
+  res.status(401).send('<html><body>You must be logged in to shorten URLs. Please <a href="/login">login</a> or <a href="/register">register</a>.</body></html>');
+}
 });
 
 app.get('/login', (req, res) => {
@@ -152,12 +161,19 @@ app.get('/login', (req, res) => {
 
 
 app.get("/urls/new", (req, res) => {
-  const templateVars = {
-    user: users[req.cookies.user_id], // Pass the user object instead of just the username
+  const userId = res.cookie.user_id;
 
-  };
-  res.render("urls_new", templateVars);
-});
+  // Check if the user is logged in
+  if (userId && users[userId]) {
+    const templateVars = {
+      user: users[userId], // Pass the user object instead of just the username
+    };
+    res.render("urls_new", templateVars);
+  } else {
+    // Redirect to GET /urls
+    res.redirect('/login');
+  }
+})
 
 app.get('/urls/:id', (req, res) => {
   const templateVars = {
@@ -175,7 +191,8 @@ app.get("/u/:id", (req, res) => {
   if (longURL) {
     res.redirect(longURL);
   } else {
-    res.status(404).send("URL not found");
+  // Render an HTML error message if the id does not exist
+  res.status(404).send('<html><body>The requested URL does not exist.</body></html>');
   }
 });
 
