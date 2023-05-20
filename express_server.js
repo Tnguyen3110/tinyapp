@@ -1,18 +1,27 @@
 const express = require("express");
-const cookieParser = require('cookie-parser');
+const cookieSession = require("cookie-session");
 const app = express();
 const PORT = 8080; // default port 8080
+const bcrypt = require('bcrypt');
+
 
 app.set("view engine", "ejs");
 
-app.use(cookieParser());
+// Configure cookie-session middleware
+app.use(
+  cookieSession({
+    name: "session",
+    keys: ["secret-key"], // Replace "secret-key" with your own secret key or use an array of multiple keys for encryption
+    maxAge: 24 * 60 * 60 * 1000, // Set the session expiration time (e.g., 24 hours)
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 
 // Middleware function
-app.use((req, res, next) => {
-  res.locals.user_id = req.cookies["user_id"];
-  next();
-});
+// app.use((req, res, next) => {
+  
+//   next();
+// });
 
 const urlDatabase = {
   b6UTxQ: {
@@ -83,10 +92,14 @@ app.post('/register', (req, res) => {
   }
 
   const userId = generateRandomString(5); // Function to generate a random ID
+
+  // Hash the password using bcrypt
+  const hashedPassword = bcrypt.hashSync(password, 10); // Use bcrypt.hashSync with a salt round of 10
+
   const newUser = {
     id: userId,
     email: email,
-    password: password
+    password: hashedPassword // Save the hashed password
   };
 
   // Add the new user object to the global users object
@@ -96,7 +109,8 @@ app.post('/register', (req, res) => {
   console.log("users", users);
 
   // Set the user_id cookie containing the newly generated user ID
-  res.cookie('user_id', userId);
+  // res.cookie('user_id', userId);
+  req.session.user_id = userId
 
   // Redirect the user to the /urls page
   res.redirect('/urls');
@@ -104,8 +118,8 @@ app.post('/register', (req, res) => {
 
 
 app.get('/urls', (req, res) => {
-  const userId = req.cookies.user_id;
-  if (userId && users[userId]) {
+  const userId = req.session.user_id;
+  if (userId) {
   const templateVars = {
     user: users[userId], // Pass the user object instead of just the username
     urls: urlDatabase
@@ -113,7 +127,7 @@ app.get('/urls', (req, res) => {
   res.render('urls_index', templateVars);
 } else {
   const error = "You must be logged in to view this page.";
-  res.status(401).render('error', { error });
+  res.status(401).send('error', { error });
 }
 });
 
@@ -134,7 +148,10 @@ app.post('/login', (req, res) => {
     return;
   }
 
-  if (password !== existingUser.password) {
+  // Use bcrypt to compare the submitted password with the hashed password
+  const passwordMatch = bcrypt.compareSync(password, existingUser.password); // Use bcrypt.compareSync to compare the passwords
+
+  if (!passwordMatch) {
     res.status(400).send("Invalid credentials");
     return;
   }
@@ -305,7 +322,7 @@ app.post('/logout', (req, res) => {
 });
 
 app.get('/register', (req, res) => {
-  const userId = res.cookie.user_id;
+  const userId = req.session.user_id;
 
   // Check if the user is logged in
   if (userId && users[userId]) {
@@ -314,7 +331,7 @@ app.get('/register', (req, res) => {
   } else {
 
     const templateVars = {
-      user: users[req.cookies.user_id], // Pass the user object instead of just the username
+      user: users[req.session.user_id], // Pass the user object instead of just the username
     };
     res.render('registration', templateVars);
   };
