@@ -15,8 +15,14 @@ app.use((req, res, next) => {
 });
 
 const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  b6UTxQ: {
+    longURL: "https://www.tsn.ca",
+    userID: "aJ48lW",
+  },
+  i3BoGr: {
+    longURL: "https://www.google.ca",
+    userID: "aJ48lW",
+  },
 };
 
 const users = {
@@ -33,7 +39,7 @@ const users = {
 };
 
 function retrieveLongURL(id) {
-  return urlDatabase[id];
+  return urlDatabase[id] ? urlDatabase[id].longURL : null;
 }
 
 function generateRandomString(string_length) {
@@ -48,6 +54,16 @@ function generateRandomString(string_length) {
 
 function getUserByEmail(email) {
   return Object.values(users).find(user => user.email === email);
+}
+
+function urlsForUser(id) {
+  const userURLs = {};
+  for (const url in urlDatabase) {
+    if (urlDatabase[url].userID === id) {
+      userURLs[url] = urlDatabase[url];
+    }
+  }
+  return userURLs;
 }
 
 app.post('/register', (req, res) => {
@@ -88,13 +104,17 @@ app.post('/register', (req, res) => {
 
 
 app.get('/urls', (req, res) => {
-  console.log("inside /url", req.cookies.user_id)
-  console.log(users[req.cookies.user_id])
+  const userId = req.cookies.user_id;
+  if (userId && users[userId]) {
   const templateVars = {
-    user: users[req.cookies.user_id], // Pass the user object instead of just the username
+    user: users[userId], // Pass the user object instead of just the username
     urls: urlDatabase
   };
   res.render('urls_index', templateVars);
+} else {
+  const error = "You must be logged in to view this page.";
+  res.status(401).render('error', { error });
+}
 });
 
 // POST /login endpoint
@@ -131,19 +151,20 @@ app.post('/urls', (req, res) => {
 
   // Check if the user is logged in
   if (userId && users[userId]) {
-  // User is logged in, proceed with URL shortening logic
-  // user post req.body which contains longURL
-  const { longURL } = req.body;
-  // shortId
-  const shortId = generateRandomString(6);
-  urlDatabase[shortId] = longURL;
-  console.log("urlDatabase", urlDatabase);
-  // placing /urls/shortId in the browser
-  res.redirect("/urls/" + shortId);
-} else {
-  // User is not logged in, respond with an HTML message
-  res.status(401).send('<html><body>You must be logged in to shorten URLs. Please <a href="/login">login</a> or <a href="/register">register</a>.</body></html>');
-}
+    // User is logged in, proceed with URL shortening logic
+    // user post req.body which contains longURL
+    const userId = req.cookies.user_id;
+    const longURL = req.body.longURL;
+    const shortId = generateRandomString(6);
+    urlDatabase[shortId] = {
+      longURL: longURL,
+      userID: userId
+    };
+    res.redirect("/urls/" + shortId);
+  } else {
+    // User is not logged in, respond with an HTML message
+    res.status(401).send('<html><body>You must be logged in to shorten URLs. Please <a href="/login">login</a> or <a href="/register">register</a>.</body></html>');
+  }
 });
 
 app.get('/login', (req, res) => {
@@ -176,12 +197,34 @@ app.get("/urls/new", (req, res) => {
 })
 
 app.get('/urls/:id', (req, res) => {
+  const userId = req.cookies.user_id;
+  const id = req.params.id;
+  const longURL = urlDatabase[id];
+
+  if (!userId || !users[userId]) {
+    const error = "You must be logged in to view this page.";
+    res.status(401).render('error', { error });
+    return;
+  }
+
+  if (!longURL) {
+    const error = "The requested URL does not exist.";
+    res.status(404).render('error', { error });
+    return;
+  }
+
+  if (urlDatabase[id].userID !== userId) {
+    const error = "You do not have permission to access this URL.";
+    res.status(403).render('error', { error });
+    return;
+  }
+
   const templateVars = {
-    user: users[req.cookies.user_id], // Pass the user object instead of just the username
-    id: req.params.id,
-    longURL: urlDatabase[req.params.id]
+    user: users[userId],
+    id: id,
+    longURL: longURL
   };
-  return res.render('urls_show', templateVars);
+  res.render('urls_show', templateVars);
 });
 
 app.get("/u/:id", (req, res) => {
@@ -191,29 +234,63 @@ app.get("/u/:id", (req, res) => {
   if (longURL) {
     res.redirect(longURL);
   } else {
-  // Render an HTML error message if the id does not exist
-  res.status(404).send('<html><body>The requested URL does not exist.</body></html>');
+    // Render an HTML error message if the id does not exist
+    res.status(404).send('<html><body>The requested URL does not exist.</body></html>');
   }
 });
 
 app.post('/urls/:id/delete', (req, res) => {
-  const id = req.params.id; // Get the value of :id from the request URL
+  const userId = req.cookies.user_id;
+  const id = req.params.id;
 
-  // Remove the URL resource using the delete operator
+  // Check if the user is logged in
+  if (!userId || !users[userId]) {
+    res.status(401).send("You must be logged in to delete URLs.");
+    return;
+  }
+
+  // Check if the URL exists
+  if (!urlDatabase[id]) {
+    res.status(404).send("The requested URL does not exist.");
+    return;
+  }
+
+  // Check if the user is the owner of the URL
+  if (urlDatabase[id].userID !== userId) {
+    res.status(403).send("You do not have permission to delete this URL.");
+    return;
+  }
+
+  // Delete the URL from the database
   delete urlDatabase[id];
-
-  // Redirect the client back to the urls_index page ("/urls")
   res.redirect('/urls');
 });
 
 app.post("/urls/:id/update", (req, res) => {
-  const id = req.params.id; // Get the value of :id from the request URL
-  const newURL = req.body.longURL; // Get the new URL from the request body
+  const userId = req.cookies.user_id;
+  const id = req.params.id;
+  const newURL = req.body.longURL;
 
-  // Update the value of the stored long URL based on the new value
+  // Check if the user is logged in
+  if (!userId || !users[userId]) {
+    res.status(401).send("You must be logged in to update URLs.");
+    return;
+  }
+
+  // Check if the URL exists
+  if (!urlDatabase[id]) {
+    res.status(404).send("The requested URL does not exist.");
+    return;
+  }
+
+  // Check if the user is the owner of the URL
+  if (urlDatabase[id].userID !== userId) {
+    res.status(403).send("You do not have permission to update this URL.");
+    return;
+  }
+
+  // Update the URL in the database
   urlDatabase[id] = newURL;
-
-  // Redirect the client back to /urls
   res.redirect("/urls");
 });
 
