@@ -32,7 +32,8 @@
           <% for (let id in urls) { %>
             <tr>
               <td><%= id %></td>
-              <td><%= urls[id] %></td>
+              <td><%= urls[id].longURL %></td>
+              <!-- <td><%- JSON.stringify(urls[id]) %></td> -->
               <td> <!-- Add the delete and edit forms for each URL -->
                 <form method="POST" action="/urls/<%= id %>/delete" style="display: inline;">
                   <button type="submit" class="btn btn-danger">Delete</button>

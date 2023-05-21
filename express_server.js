@@ -3,6 +3,7 @@ const cookieSession = require("cookie-session");
 const app = express();
 const PORT = 8080; // default port 8080
 const bcrypt = require('bcrypt');
+const { use } = require("bcrypt/promises");
 
 
 app.set("view engine", "ejs");
@@ -119,11 +120,20 @@ app.post('/register', (req, res) => {
 
 app.get('/urls', (req, res) => {
   const userId = req.session.user_id;
-  if (userId) {
+  const userURLs = {}
+  console.log(urlDatabase)
+  for (id in urlDatabase) {
+    if (userId === urlDatabase[id].userId) {
+      userURLs[id] = urlDatabase[id]
+    }
+
+  }if (userId) {
   const templateVars = {
     user: users[userId], // Pass the user object instead of just the username
-    urls: urlDatabase
+    urls: userURLs
+  
   };
+  
   res.render('urls_index', templateVars);
 } else {
   const error = "You must be logged in to view this page.";
@@ -164,13 +174,15 @@ app.post('/login', (req, res) => {
 });
 
 app.post('/urls', (req, res) => {
-  const userId = req.cookies.user_id;
+  const userId = req.session.user_id;
+  console.log("/urls")
+  console.log("userId && users[userId]", userId && users[userId])
 
   // Check if the user is logged in
   if (userId && users[userId]) {
     // User is logged in, proceed with URL shortening logic
     // user post req.body which contains longURL
-    const userId = req.cookies.user_id;
+    const userId = req.session.user_id;
     const longURL = req.body.longURL;
     const shortId = generateRandomString(6);
     urlDatabase[shortId] = {
@@ -199,7 +211,8 @@ app.get('/login', (req, res) => {
 
 
 app.get("/urls/new", (req, res) => {
-  const userId = res.cookie.user_id;
+  const userId = req.session.user_id;
+ 
 
   // Check if the user is logged in
   if (userId && users[userId]) {
@@ -207,6 +220,7 @@ app.get("/urls/new", (req, res) => {
       user: users[userId], // Pass the user object instead of just the username
     };
     res.render("urls_new", templateVars);
+    
   } else {
     // Redirect to GET /urls
     res.redirect('/login');
@@ -214,7 +228,7 @@ app.get("/urls/new", (req, res) => {
 })
 
 app.get('/urls/:id', (req, res) => {
-  const userId = req.cookies.user_id;
+  const userId = req.session.user_id;
   const id = req.params.id;
   const longURL = urlDatabase[id];
 
@@ -257,7 +271,7 @@ app.get("/u/:id", (req, res) => {
 });
 
 app.post('/urls/:id/delete', (req, res) => {
-  const userId = req.cookies.user_id;
+  const userId = req.session.user_id;
   const id = req.params.id;
 
   // Check if the user is logged in
@@ -284,7 +298,7 @@ app.post('/urls/:id/delete', (req, res) => {
 });
 
 app.post("/urls/:id/update", (req, res) => {
-  const userId = req.cookies.user_id;
+  const userId = req.session.user_id;
   const id = req.params.id;
   const newURL = req.body.longURL;
 
